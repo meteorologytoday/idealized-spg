@@ -1,5 +1,6 @@
 data
 *.png
+*.gif
 *.swp
 *.tmp
 *.nc
