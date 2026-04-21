@@ -9,7 +9,7 @@ unexpected or unportable behaviors.
 
 ## Git
 
-- repo URL: 
+- repo URL: https://github.com/meteorologytoday/idealized-spg.git
 
 ## Project Guidelines
 
