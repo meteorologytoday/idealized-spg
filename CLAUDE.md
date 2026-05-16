@@ -25,6 +25,10 @@ You can only modify files within this project.
 - **Region of Interest:** The Subpolar Gyre (SPG), approximately bounded by:
   - Latitude: 50°N to 65°N
   - Longitude: 60°W to 10°W
+- **Data extraction Region** All reanalysis are cropped contain:
+  - Latitude: 40°N to 70°N
+  - Longitude: 70°W to 10°W
+
 - **Conventions:**
   - Use `xarray` for all NetCDF data handling.
   - Use `cartopy` for spatial mapping to ensure proper geographic projections.
