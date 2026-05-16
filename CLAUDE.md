@@ -1,11 +1,15 @@
-# Project: ORAS5 Subpolar Gyre Analysis
+# Project: Subpolar Gyre Analysis
 
-This project focuses on analyzing ORAS5 ocean climate data in the North Atlantic Subpolar Gyre (SPG) region.
+This project focuses on analyzing ocean reanalysis data in the North Atlantic Subpolar Gyre (SPG) region.
 
 ## Personal request
 
 You are a senior engineer. You need to be strict on the code quality and flexibility. Do not produce code that may result in 
-unexpected or unportable behaviors.
+unexpected or unportable behaviors. We are equal, and we talk nice :)
+
+## Restriction
+
+You can only modify files within this project.
 
 ## Git
 
@@ -15,7 +19,7 @@ unexpected or unportable behaviors.
 
 - **Environment:** Always use the `jaxesm` conda environment for data processing and visualization.
   - Required libraries: `xarray`, `numpy`, `matplotlib`, `cartopy`.
-- **Data Source:** The primary data is located at `/home/tienyiao/PIK_2026_backup/SPG/data/`.
+- **Data Source:** The primary data is located at `data`.
   - Data is organized into subdirectories by variable (e.g., `sea_surface_temperature`, `mixed_layer_depth_0_01`).
   - Files are monthly NetCDF files with `nav_lat`, `nav_lon`, and `time_counter` dimensions.
 - **Region of Interest:** The Subpolar Gyre (SPG), approximately bounded by:
@@ -26,12 +30,16 @@ unexpected or unportable behaviors.
   - Use `cartopy` for spatial mapping to ensure proper geographic projections.
   - Maintain scripts for reproducibility (e.g., `analyze_oras5.py`, `plot_structure.py`).
 
-## Key Variables
-- `sosstsst`: Sea Surface Temperature (C)
-- `somxl010`: Mixed Layer Depth (m) - 0.01 density criterion
-- `sozotaux`: Zonal Wind Stress (N/m^2)
-- `sometauy`: Meridional Wind Stress (N/m^2)
-- `sohefldo`: Net Downward Heat Flux (W/m^2)
+## Reanalysis Dataset
+
+- ORAS5
+   1. `sosstsst`: Sea Surface Temperature (C)
+   2. `somxl010`: Mixed Layer Depth (m) - 0.01 density criterion
+   3. `sozotaux`: Zonal Wind Stress (N/m^2)
+   4. `sometauy`: Meridional Wind Stress (N/m^2)
+   5. `sohefldo`: Net Downward Heat Flux (W/m^2)
+- GLORYS 1/12 degrees
+
 
 ## Code Environment
 
