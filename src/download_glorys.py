@@ -11,7 +11,7 @@ YEARS = range(2003, 2022)  # GLORYS multi-year product availability
 
 DATASET_ID = "cmems_mod_glo_phy_my_0.083deg_P1M-m"
 
-VARIABLES = ["uo", "vo", "thetao", "so"]
+VARIABLES = ["mlotst", "uo", "vo", "thetao", "so"]
 
 # Data extraction region (matches CLAUDE.md: 40-70N, 60-10W)
 MIN_LONGITUDE = -60
