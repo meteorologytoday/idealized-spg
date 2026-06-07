@@ -14,10 +14,11 @@ You can only modify files within this project.
 ## Git
 
 - repo URL: https://github.com/meteorologytoday/idealized-spg.git
+- When making commits, break it into meaningful logical chunks if necessary.
 
 ## Project Guidelines
 
-- **Environment:** Always use the `jaxesm` conda environment for data processing and visualization.
+- **Environment:** Use the `rainbow` conda environment for data processing and visualization.
   - Required libraries: `xarray`, `numpy`, `matplotlib`, `cartopy`.
 - **Data Source:** The primary data is located at `data`.
   - Data is organized into subdirectories by variable (e.g., `sea_surface_temperature`, `mixed_layer_depth_0_01`).
@@ -47,7 +48,7 @@ You can only modify files within this project.
 
 ## Code Environment
 
-- Use `conda activate jaxesm` for python.
+- Use `conda activate rainbow` for python.
 
 ## Description of Plotting Files
 
