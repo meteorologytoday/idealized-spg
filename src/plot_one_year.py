@@ -10,11 +10,16 @@ from scipy.interpolate import griddata
 
 import data_loader as dl
 
-# Fixed 2x4 panel grid (row 1 has 4 panels, row 2 has 3 plus one blank slot),
-# addressed by flat index so every product places a given quantity in the same
-# spot -- panels a product can't provide are hidden via _hide_panel() but keep
-# their place, so the layout stays identical across products.
+# Fixed 2x4 panel grid (8 quantities, one per slot), addressed by flat index
+# so every product places a given quantity in the same spot -- panels a
+# product can't provide are hidden via _hide_panel() but keep their place,
+# so the layout stays identical across products.
 N_ROWS, N_COLS = 2, 4
+
+# Discretize each scalar panel's colormap to this many shades, rather than
+# the continuous gradient pcolormesh draws by default -- keeps neighboring
+# shades visually distinguishable instead of blurring into one another.
+N_COLOR_LEVELS = 20
 
 SEASONS = ['DJF', 'MAM', 'JJA', 'SON']
 ANNUAL = 'ANNUAL'
@@ -24,14 +29,15 @@ SCALAR_PANELS = [
     (0, 'mld',        'viridis_r', 'MLD (m)',                   0,    1000),
     (1, 'sst',        'RdYlBu_r',  r'SST ($^\circ$C)',          0,    15),
     (2, 'sss',        'YlGnBu',    'SSS (psu)',                 34,   36),
+    (3, 'ssh',        'viridis',   'SSH (m)',                   -1.2, 0.2),
     (4, 'heat_flux',  'RdBu_r',    r'Heat Flux (W/m$^2$)',      -300, 300),
     (5, 'water_flux', 'BrBG',      'Freshwater Flux (mm/day)',  -5,   5),
 ]
 
-# Panel 3 (row 1, rightmost): the ocean's *own* surface currents, drawn as a
-# streamline plot. This is a different physical quantity from wind stress
-# (the atmosphere's forcing on the ocean surface, panel 6 below) and gets its
-# own panel so the two are never conflated.
+# Panel 7 (row 2, last slot): the ocean's *own* surface currents, drawn as a
+# streamline plot colored by speed. A different physical quantity from wind
+# stress (the atmosphere's forcing on the ocean surface, panel 6) and gets
+# its own panel so the two are never conflated.
 #
 # matplotlib's streamplot needs an evenly-spaced rectangular (np.meshgrid-like)
 # grid. GLORYS provides one natively; ORAS5's curvilinear NEMO grid does not
@@ -44,7 +50,7 @@ SCALAR_PANELS = [
 # true zonal/meridional components (see data_loader._SURFACE_VARIABLES), no
 # rotation is needed, only the grid geometry stands in the way of streamplot.
 STREAMPLOT_GRID_RESOLUTION = 0.25  # degrees, for regridding curvilinear products
-SURFACE_CURRENT_PANEL_INDEX = 3
+SURFACE_CURRENT_PANEL_INDEX = 7
 SURFACE_CURRENT_PANELS = {
     'GLORYS': dict(u='uo', v='vo', title='Surface Current (Streamline)', cmap='viridis', label='Speed (m s$^{-1}$)'),
     'ORAS5':  dict(u='uo', v='vo', title='Surface Current (Streamline)', cmap='viridis', label='Speed (m s$^{-1}$)'),
@@ -163,7 +169,7 @@ def _plot_scalar_panel(ax, dataset, years_list, season, var_name, cmap, title, v
 
     _set_map_extent(ax, lon_range, lat_range)
     im = ax.pcolormesh(data['lon'], data['lat'], data, transform=ccrs.PlateCarree(),
-                       cmap=cmap, vmin=vmin, vmax=vmax, shading='auto')
+                       cmap=plt.get_cmap(cmap, N_COLOR_LEVELS), vmin=vmin, vmax=vmax, shading='auto')
 
     ticks = np.linspace(vmin, vmax, 5)
     plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.08, shrink=0.8,
@@ -223,9 +229,9 @@ def _plot_wind_stress_panel(ax, dataset, years_list, season, lon_range, lat_rang
 
 def plot_one_year(dataset='ORAS5', years=2010, season='DJF', lon_range=(-70, -10), lat_range=(40, 70)):
     """
-    Plot the mean state of MLD, SST, SSS, surface current (streamline), heat
-    flux, freshwater flux, and wind stress (vector) for `dataset`, over the
-    specified years, season, and region.
+    Plot the mean state of MLD, SST, SSS, SSH, heat flux, freshwater flux,
+    wind stress (vector), and surface current (streamline) for `dataset`,
+    over the specified years, season, and region.
 
     Panels for variables that `dataset` does not provide are hidden but keep
     their place in the fixed 2x4 grid, so the layout matches across products.
@@ -257,14 +263,14 @@ def plot_one_year(dataset='ORAS5', years=2010, season='DJF', lon_range=(-70, -10
         used_indices.add(idx)
         _plot_scalar_panel(axes[idx], dataset, years_list, season, var_name, cmap, title, vmin, vmax, lon_range, lat_range)
 
-    used_indices.add(SURFACE_CURRENT_PANEL_INDEX)
-    _plot_surface_current_panel(axes[SURFACE_CURRENT_PANEL_INDEX], dataset, years_list, season, lon_range, lat_range)
-
     used_indices.add(WIND_STRESS_PANEL_INDEX)
     _plot_wind_stress_panel(axes[WIND_STRESS_PANEL_INDEX], dataset, years_list, season, lon_range, lat_range)
 
-    # Any grid slot nobody claimed (e.g. the trailing blank in row 2) stays
-    # empty but keeps its place, just like the hidden per-product panels.
+    used_indices.add(SURFACE_CURRENT_PANEL_INDEX)
+    _plot_surface_current_panel(axes[SURFACE_CURRENT_PANEL_INDEX], dataset, years_list, season, lon_range, lat_range)
+
+    # Any grid slot nobody claimed stays empty but keeps its place, just
+    # like the hidden per-product panels.
     for idx, ax in enumerate(axes):
         if idx not in used_indices:
             _hide_panel(ax)
