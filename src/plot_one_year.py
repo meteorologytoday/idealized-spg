@@ -15,6 +15,8 @@ import data_loader as dl
 # their place, so the layout stays identical across products.
 N_ROWS, N_COLS = 2, 4
 
+SEASONS = ['DJF', 'MAM', 'JJA', 'SON']
+
 # (panel index, standardized variable name, colormap, axis label, vmin, vmax)
 SCALAR_PANELS = [
     (0, 'mld',        'viridis_r', 'MLD (m)',                   0,    1000),
@@ -50,10 +52,15 @@ _UNIT_CONVERSIONS = {
 }
 
 
-def _load_djf_mean(dataset, variable, years):
+def _load_seasonal_mean(dataset, variable, years, season):
     """
-    Load `variable` for `dataset`/`years`, select DJF months, and average over
-    time. Returns None if the product does not provide this variable.
+    Load `variable` for `dataset`/`years`, optionally restrict to one
+    season's months, and average over time.
+
+    season: one of 'DJF', 'MAM', 'JJA', 'SON' to restrict to that season, or
+            None to average over all months (the annual mean).
+
+    Returns None if the product does not provide this variable.
     """
     da = dl.load_surface(dataset, variable, years=years)
     if da is None:
@@ -63,7 +70,14 @@ def _load_djf_mean(dataset, variable, years):
     if convert is not None:
         da = convert(da)
 
-    return da.sel(time=da.time.dt.season == 'DJF').mean(dim='time').compute()
+    if season is not None:
+        da = da.sel(time=da.time.dt.season == season)
+
+    return da.mean(dim='time').compute()
+
+
+def _season_label(season):
+    return season if season is not None else 'Annual'
 
 
 def _set_map_extent(ax, lon_range, lat_range):
@@ -94,8 +108,8 @@ def _hide_panel(ax):
     ax.axis('off')
 
 
-def _plot_scalar_panel(ax, dataset, years_list, var_name, cmap, title, vmin, vmax, lon_range, lat_range):
-    data = _load_djf_mean(dataset, var_name, years_list)
+def _plot_scalar_panel(ax, dataset, years_list, season, var_name, cmap, title, vmin, vmax, lon_range, lat_range):
+    data = _load_seasonal_mean(dataset, var_name, years_list, season)
     if data is None:
         _hide_panel(ax)
         return
@@ -110,12 +124,12 @@ def _plot_scalar_panel(ax, dataset, years_list, var_name, cmap, title, vmin, vma
     ax.set_title(title, fontweight='bold')
 
 
-def _plot_surface_current_panel(ax, dataset, years_list, lon_range, lat_range):
+def _plot_surface_current_panel(ax, dataset, years_list, season, lon_range, lat_range):
     spec = SURFACE_CURRENT_PANELS.get(dataset)
     u = v = None
     if spec is not None:
-        u = _load_djf_mean(dataset, spec['u'], years_list)
-        v = _load_djf_mean(dataset, spec['v'], years_list)
+        u = _load_seasonal_mean(dataset, spec['u'], years_list, season)
+        v = _load_seasonal_mean(dataset, spec['v'], years_list, season)
 
     if u is None or v is None:
         _hide_panel(ax)
@@ -129,12 +143,12 @@ def _plot_surface_current_panel(ax, dataset, years_list, lon_range, lat_range):
     ax.set_title(spec['title'], fontweight='bold')
 
 
-def _plot_wind_stress_panel(ax, dataset, years_list, lon_range, lat_range):
+def _plot_wind_stress_panel(ax, dataset, years_list, season, lon_range, lat_range):
     spec = WIND_STRESS_PANELS.get(dataset)
     u = v = None
     if spec is not None:
-        u = _load_djf_mean(dataset, spec['u'], years_list)
-        v = _load_djf_mean(dataset, spec['v'], years_list)
+        u = _load_seasonal_mean(dataset, spec['u'], years_list, season)
+        v = _load_seasonal_mean(dataset, spec['v'], years_list, season)
 
     if u is None or v is None:
         _hide_panel(ax)
@@ -148,26 +162,32 @@ def _plot_wind_stress_panel(ax, dataset, years_list, lon_range, lat_range):
     ax.set_title(spec['title'], fontweight='bold')
 
 
-def plot_one_year(dataset='ORAS5', years=2010, lon_range=(-70, -10), lat_range=(40, 70)):
+def plot_one_year(dataset='ORAS5', years=2010, season='DJF', lon_range=(-70, -10), lat_range=(40, 70)):
     """
-    Plot the average DJF state of MLD, SST, SSS, surface current (streamline),
-    heat flux, freshwater flux, and wind stress (vector) for `dataset`, over
-    the specified years and region.
+    Plot the mean state of MLD, SST, SSS, surface current (streamline), heat
+    flux, freshwater flux, and wind stress (vector) for `dataset`, over the
+    specified years, season, and region.
 
     Panels for variables that `dataset` does not provide are hidden but keep
     their place in the fixed 2x4 grid, so the layout matches across products.
 
     dataset:   'ORAS5' or 'GLORYS'
     years:     int or list of ints
+    season:    one of 'DJF', 'MAM', 'JJA', 'SON' to average over that season's
+               months, or None to average over the full year instead
     lon_range: tuple (min_lon, max_lon)
     lat_range: tuple (min_lat, max_lat)
     """
+    if season is not None and season not in SEASONS:
+        raise ValueError(f"Unknown season '{season}', expected one of {SEASONS} or None for the annual mean")
+
     years_list = [int(years)] if isinstance(years, (int, str)) else sorted(years)
 
     plt.rcParams.update({'font.size': 10})
 
     year_label = f"{years_list[0]}" if len(years_list) == 1 else f"{years_list[0]}-{years_list[-1]}"
-    print(f"Loading and averaging {dataset} data for DJF {year_label}...")
+    season_label = _season_label(season)
+    print(f"Loading and averaging {dataset} data for {season_label} {year_label}...")
 
     fig, axes = plt.subplots(N_ROWS, N_COLS, figsize=(24, 10),
                              subplot_kw={'projection': ccrs.PlateCarree()})
@@ -176,13 +196,13 @@ def plot_one_year(dataset='ORAS5', years=2010, lon_range=(-70, -10), lat_range=(
 
     for idx, var_name, cmap, title, vmin, vmax in SCALAR_PANELS:
         used_indices.add(idx)
-        _plot_scalar_panel(axes[idx], dataset, years_list, var_name, cmap, title, vmin, vmax, lon_range, lat_range)
+        _plot_scalar_panel(axes[idx], dataset, years_list, season, var_name, cmap, title, vmin, vmax, lon_range, lat_range)
 
     used_indices.add(SURFACE_CURRENT_PANEL_INDEX)
-    _plot_surface_current_panel(axes[SURFACE_CURRENT_PANEL_INDEX], dataset, years_list, lon_range, lat_range)
+    _plot_surface_current_panel(axes[SURFACE_CURRENT_PANEL_INDEX], dataset, years_list, season, lon_range, lat_range)
 
     used_indices.add(WIND_STRESS_PANEL_INDEX)
-    _plot_wind_stress_panel(axes[WIND_STRESS_PANEL_INDEX], dataset, years_list, lon_range, lat_range)
+    _plot_wind_stress_panel(axes[WIND_STRESS_PANEL_INDEX], dataset, years_list, season, lon_range, lat_range)
 
     # Any grid slot nobody claimed (e.g. the trailing blank in row 2) stays
     # empty but keeps its place, just like the hidden per-product panels.
@@ -190,12 +210,12 @@ def plot_one_year(dataset='ORAS5', years=2010, lon_range=(-70, -10), lat_range=(
         if idx not in used_indices:
             _hide_panel(ax)
 
-    plt.suptitle(f'{dataset} DJF Mean ({year_label}) - SPG Region', fontsize=22, fontweight='bold', y=0.98)
+    plt.suptitle(f'{dataset} {season_label} Mean ({year_label}) - SPG Region', fontsize=22, fontweight='bold', y=0.98)
     plt.tight_layout(rect=[0, 0, 1, 0.95])
 
     os.makedirs('figures', exist_ok=True)
     suffix = f"{years_list[0]}_{years_list[-1]}" if len(years_list) > 1 else f"{years_list[0]}"
-    output_path = f'figures/{dataset.lower()}_djf_avg_{suffix}_panels.png'
+    output_path = f'figures/{dataset.lower()}_{season_label.lower()}_avg_{suffix}_panels.png'
     plt.savefig(output_path, dpi=200, bbox_inches='tight')
     print(f"Saved {output_path}")
     plt.close()
@@ -207,5 +227,5 @@ if __name__ == "__main__":
 
     for dataset in ['ORAS5', 'GLORYS']:
         for year in years_to_plot:
-            plot_one_year(dataset=dataset, years=year, **box_kwargs)
-        plot_one_year(dataset=dataset, years=years_to_plot, **box_kwargs)
+            plot_one_year(dataset=dataset, years=year, season='DJF', **box_kwargs)
+        plot_one_year(dataset=dataset, years=years_to_plot, season='DJF', **box_kwargs)
