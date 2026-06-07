@@ -63,6 +63,12 @@ _SURFACE_VARIABLES = {
         'water_flux': dict(var_dir='net_upward_water_flux',   var_name='sowaflup'),
         'taux':       dict(var_dir='zonal_wind_stress',       var_name='sozotaux'),
         'tauy':       dict(var_dir='meridional_wind_stress',  var_name='sometauy'),
+        # vozocrtx/vomecrty are ORAS5's *true* zonal/meridional current
+        # components (already rotated onto the geographic frame by the data
+        # provider), not grid-relative i/j components -- safe to use directly
+        # alongside GLORYS's uo/vo despite ORAS5's curvilinear native grid.
+        'uo':         dict(var_dir='zonal_velocity',          var_name='vozocrtx', from_3d=True),
+        'vo':         dict(var_dir='meridional_velocity',     var_name='vomecrty', from_3d=True),
     },
     'GLORYS': {
         'mld': dict(var_dir='mlotst', var_name='mlotst'),
