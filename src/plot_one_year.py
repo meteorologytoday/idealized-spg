@@ -16,6 +16,7 @@ import data_loader as dl
 N_ROWS, N_COLS = 2, 4
 
 SEASONS = ['DJF', 'MAM', 'JJA', 'SON']
+ANNUAL = 'ANNUAL'
 
 # (panel index, standardized variable name, colormap, axis label, vmin, vmax)
 SCALAR_PANELS = [
@@ -58,7 +59,7 @@ def _load_seasonal_mean(dataset, variable, years, season):
     season's months, and average over time.
 
     season: one of 'DJF', 'MAM', 'JJA', 'SON' to restrict to that season, or
-            None to average over all months (the annual mean).
+            ANNUAL ('ANNUAL') to average over all months instead.
 
     Returns None if the product does not provide this variable.
     """
@@ -70,14 +71,14 @@ def _load_seasonal_mean(dataset, variable, years, season):
     if convert is not None:
         da = convert(da)
 
-    if season is not None:
+    if season != ANNUAL:
         da = da.sel(time=da.time.dt.season == season)
 
     return da.mean(dim='time').compute()
 
 
 def _season_label(season):
-    return season if season is not None else 'Annual'
+    return 'Annual' if season == ANNUAL else season
 
 
 def _set_map_extent(ax, lon_range, lat_range):
@@ -174,12 +175,12 @@ def plot_one_year(dataset='ORAS5', years=2010, season='DJF', lon_range=(-70, -10
     dataset:   'ORAS5' or 'GLORYS'
     years:     int or list of ints
     season:    one of 'DJF', 'MAM', 'JJA', 'SON' to average over that season's
-               months, or None to average over the full year instead
+               months, or ANNUAL ('ANNUAL') to average over the full year
     lon_range: tuple (min_lon, max_lon)
     lat_range: tuple (min_lat, max_lat)
     """
-    if season is not None and season not in SEASONS:
-        raise ValueError(f"Unknown season '{season}', expected one of {SEASONS} or None for the annual mean")
+    if season != ANNUAL and season not in SEASONS:
+        raise ValueError(f"Unknown season '{season}', expected one of {SEASONS} or {ANNUAL!r} for the annual mean")
 
     years_list = [int(years)] if isinstance(years, (int, str)) else sorted(years)
 
