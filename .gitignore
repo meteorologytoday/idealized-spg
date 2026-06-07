@@ -4,3 +4,5 @@ data
 *.swp
 *.tmp
 *.nc
+__pycache__/
+.claude/
