@@ -54,7 +54,20 @@ def compute_buoyancy(theta, salinity, depth, lat_ref, lon_ref):
     return xr.DataArray(buoyancy, dims=theta.dims, coords=theta.coords, name='buoyancy')
 
 
-def _load_seasonal_profiles(dataset, years, lat_range, lon_range, max_depth):
+def _expand_year_range(year_range):
+    """
+    Convert an inclusive (start_year, end_year) range into the list of
+    individual years `data_loader.load` expects. None means "every year
+    found on disk".
+    """
+    if year_range is None:
+        return None
+
+    start_year, end_year = year_range
+    return list(range(start_year, end_year + 1))
+
+
+def _load_seasonal_profiles(dataset, year_range, lat_range, lon_range, max_depth):
     """
     Load temperature, salinity, and zonal/meridional velocity for `dataset`,
     derive buoyancy from temperature and salinity, average everything over
@@ -64,10 +77,15 @@ def _load_seasonal_profiles(dataset, years, lat_range, lon_range, max_depth):
     native (staggered U/V) grids, exactly like temperature and salinity on
     the T grid -- consistent with this project's no-interpolation policy.
 
+    year_range: (start_year, end_year) inclusive range, or None for every
+                year found on disk -- see _expand_year_range
+
     Returns (seasonal_mean, seasonal_std, start_year, end_year): the seasonal_*
     values are dicts mapping standardized variable name -> xr.DataArray with
     dims (season, depth), trimmed to depths <= max_depth.
     """
+    years = _expand_year_range(year_range)
+
     print(f"Loading {dataset} {', '.join(_LOADED_VARS)}...")
     loaded = {name: dl.load(dataset, name, years=years) for name in _LOADED_VARS}
 
@@ -137,8 +155,9 @@ def plot_vertical_profile(dataset='GLORYS', years=None, lat_range=(50, 65), lon_
     salinity, and buoyancy, averaged over a lat-lon box, for one product.
 
     dataset:   'GLORYS' or 'ORAS5'
-    years:     optional int or iterable of ints restricting which years to load
-               (e.g. so that GLORYS and ORAS5 can be compared over a common period)
+    years:     optional (start_year, end_year) inclusive range restricting
+               which years to load (e.g. so that GLORYS and ORAS5 can be
+               compared over a common period), or None for every year found
     lat_range: (min_lat, max_lat) of the averaging box, in degrees North
     lon_range: (min_lon, max_lon) of the averaging box, in degrees East
     max_depth: deepest level shown on the depth axis, in metres
@@ -238,9 +257,12 @@ def plot_comparison(datasets=('GLORYS', 'ORAS5'), years=None,
 
     plt.tight_layout(rect=[0, 0, 1, 0.94])
 
+    start_year = min(start for _, _, start, _ in profiles_by_dataset.values())
+    end_year = max(end for _, _, _, end in profiles_by_dataset.values())
+
     os.makedirs('figures', exist_ok=True)
     suffix = '_'.join(dataset.lower() for dataset in datasets)
-    output_path = f'figures/{suffix}_spg_vertical_profile_comparison.png'
+    output_path = f'figures/{suffix}_spg_vertical_profile_comparison_{start_year}_{end_year}.png'
     plt.savefig(output_path, dpi=200, bbox_inches='tight')
     print(f"Saved {output_path}")
     plt.close()
@@ -248,8 +270,7 @@ def plot_comparison(datasets=('GLORYS', 'ORAS5'), years=None,
 
 if __name__ == "__main__":
     # Common period covered by both products, so the figures are comparable.
-    common_years = list(range(2003, 2013))
-    box_kwargs = dict(years=common_years, lat_range=(50, 65), lon_range=(-60, -10), max_depth=2000)
+    box_kwargs = dict(years=(2003, 2012), lat_range=(50, 65), lon_range=(-60, -10), max_depth=2000)
 
     for dataset in ['GLORYS', 'ORAS5']:
         plot_vertical_profile(dataset=dataset, **box_kwargs)
