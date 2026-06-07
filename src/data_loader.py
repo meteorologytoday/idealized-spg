@@ -34,10 +34,14 @@ _VARIABLES = {
     'ORAS5': {
         'temperature': dict(var_dir='potential_temperature', var_name='votemper'),
         'salinity':    dict(var_dir='salinity',              var_name='vosaline'),
+        'u_velocity':  dict(var_dir='zonal_velocity',        var_name='vozocrtx'),
+        'v_velocity':  dict(var_dir='meridional_velocity',   var_name='vomecrty'),
     },
     'GLORYS': {
         'temperature': dict(var_dir='thetao', var_name='thetao'),
         'salinity':    dict(var_dir='so',     var_name='so'),
+        'u_velocity':  dict(var_dir='uo',     var_name='uo'),
+        'v_velocity':  dict(var_dir='vo',     var_name='vo'),
     },
 }
 
@@ -69,9 +73,13 @@ _SURFACE_VARIABLES = {
     },
 }
 
-# Native -> standardized name, per dataset. Only names actually present are renamed.
+# Native -> standardized name, per dataset. Only names actually present are
+# renamed, so it's safe to list ORAS5's three depth coordinate names side by
+# side here even though a given file only ever has one of them: NEMO stores
+# scalars on the T grid (deptht) and velocity components on the staggered U/V
+# grids (depthu/depthv), but all three share the same vertical levels.
 _RENAME = {
-    'ORAS5':  dict(time_counter='time', deptht='depth', nav_lat='lat', nav_lon='lon'),
+    'ORAS5':  dict(time_counter='time', deptht='depth', depthu='depth', depthv='depth', nav_lat='lat', nav_lon='lon'),
     'GLORYS': dict(latitude='lat', longitude='lon'),
 }
 

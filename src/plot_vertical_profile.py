@@ -16,10 +16,17 @@ SEASONS = ['DJF', 'MAM', 'JJA', 'SON']
 
 # (standardized variable name, axis label, line/shading color)
 VAR_CONFIG = [
-    ('temperature', r'Temperature ($^\circ$C)',  'tab:red'),
-    ('salinity',    'Salinity (PSU)',            'tab:blue'),
-    ('buoyancy',    r'Buoyancy (m s$^{-2}$)',    'tab:green'),
+    ('temperature', r'Temperature ($^\circ$C)',          'tab:red'),
+    ('salinity',    'Salinity (PSU)',                    'tab:blue'),
+    ('buoyancy',    r'Buoyancy (m s$^{-2}$)',            'tab:green'),
+    ('u_velocity',  r'Zonal velocity (m s$^{-1}$)',      'tab:purple'),
+    ('v_velocity',  r'Meridional velocity (m s$^{-1}$)', 'tab:orange'),
 ]
+
+# Standardized variable names loaded directly from disk; buoyancy is derived
+# from temperature and salinity afterwards (see compute_buoyancy) rather than
+# loaded, so it is listed in VAR_CONFIG but not here.
+_LOADED_VARS = ['temperature', 'salinity', 'u_velocity', 'v_velocity']
 
 
 def compute_buoyancy(theta, salinity, depth, lat_ref, lon_ref):
@@ -49,41 +56,39 @@ def compute_buoyancy(theta, salinity, depth, lat_ref, lon_ref):
 
 def _load_seasonal_profiles(dataset, years, lat_range, lon_range, max_depth):
     """
-    Load temperature and salinity for `dataset`, derive buoyancy, average all
-    three over the lat-lon box, and group the resulting profiles by season.
+    Load temperature, salinity, and zonal/meridional velocity for `dataset`,
+    derive buoyancy from temperature and salinity, average everything over
+    the lat-lon box, and group the resulting profiles by season.
+
+    Note that velocity components are loaded and box-averaged on their own
+    native (staggered U/V) grids, exactly like temperature and salinity on
+    the T grid -- consistent with this project's no-interpolation policy.
 
     Returns (seasonal_mean, seasonal_std, start_year, end_year): the seasonal_*
     values are dicts mapping standardized variable name -> xr.DataArray with
     dims (season, depth), trimmed to depths <= max_depth.
     """
-    print(f"Loading {dataset} temperature and salinity...")
-    theta = dl.load(dataset, 'temperature', years=years)
-    salinity = dl.load(dataset, 'salinity', years=years)
+    print(f"Loading {dataset} {', '.join(_LOADED_VARS)}...")
+    loaded = {name: dl.load(dataset, name, years=years) for name in _LOADED_VARS}
 
     print(f"Averaging {dataset} over the box: lat {lat_range}, lon {lon_range} ...")
     depth_slice = slice(0, max_depth)
-    theta_profile = dl.box_mean(theta, lat_range, lon_range).sel(depth=depth_slice)
-    salinity_profile = dl.box_mean(salinity, lat_range, lon_range).sel(depth=depth_slice)
+    profiles = {name: dl.box_mean(da, lat_range, lon_range).sel(depth=depth_slice)
+                for name, da in loaded.items()}
 
-    depth = theta_profile['depth']
+    depth = profiles['temperature']['depth']
     lat_ref = float(np.mean(lat_range))
     lon_ref = float(np.mean(lon_range))
 
     print(f"Deriving {dataset} buoyancy via gsw (TEOS-10 equation of state)...")
-    buoyancy_profile = compute_buoyancy(theta_profile, salinity_profile, depth.values, lat_ref, lon_ref)
-
-    profiles = {
-        'temperature': theta_profile,
-        'salinity': salinity_profile,
-        'buoyancy': buoyancy_profile,
-    }
+    profiles['buoyancy'] = compute_buoyancy(profiles['temperature'], profiles['salinity'], depth.values, lat_ref, lon_ref)
 
     print(f"Calculating {dataset} seasonal statistics...")
     seasonal_mean = {name: da.groupby('time.season').mean(dim='time').compute() for name, da in profiles.items()}
     seasonal_std = {name: da.groupby('time.season').std(dim='time').compute() for name, da in profiles.items()}
 
-    start_year = int(theta.time.dt.year.min().values)
-    end_year = int(theta.time.dt.year.max().values)
+    start_year = int(loaded['temperature'].time.dt.year.min().values)
+    end_year = int(loaded['temperature'].time.dt.year.max().values)
 
     return seasonal_mean, seasonal_std, start_year, end_year
 
@@ -98,7 +103,7 @@ def _new_profile_grid(suptitle):
     seasons' temperature panels span the same range and can be compared
     directly.
     """
-    fig, axes = plt.subplots(len(SEASONS), len(VAR_CONFIG), figsize=(16, 20),
+    fig, axes = plt.subplots(len(SEASONS), len(VAR_CONFIG), figsize=(16 / 3 * len(VAR_CONFIG), 20),
                              sharey='row', sharex='col')
     fig.suptitle(suptitle, fontsize=20, fontweight='bold', y=0.97)
 
